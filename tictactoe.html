@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Tic-Tac-Toe Game</title>
+  <style>
+    :root {
+      --bg-color: #f0f4f8;
+      --primary: #6c63ff;
+      --secondary: #ffb6b9;
+      --accent: #d3f8e2;
+      --text: #333;
+      --win: #b5ead7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+
+    .game-container {
+      background: white;
+      padding: 25px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .scoreboard {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      color: var(--secondary);
+      font-weight: bold;
+    }
+
+    #status {
+      text-align: center;
+      margin: 15px 0;
+      font-size: 1.1rem;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .cell {
+      width: 100%;
+      aspect-ratio: 1;
+      background-color: var(--accent);
+      border-radius: 15px;
+      font-size: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .cell:hover {
+      background-color: #bdeee2;
+      transform: scale(1.05);
+    }
+
+    .cell.win {
+      background-color: var(--win);
+      animation: pulse 0.6s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.07); }
+    }
+
+    .buttons {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background-color: #574fd6;
+    }
+
+   
+    #overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 1000;
+      flex-direction: column;
+    }
+
+    #overlay.show {
+      display: flex;
+    }
+
+    .overlay-content {
+      text-align: center;
+      animation: popIn 0.5s ease;
+    }
+
+    .overlay-content h2 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+
+    .overlay-content button {
+      padding: 12px 25px;
+      background: var(--secondary);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .overlay-content button:hover {
+      background: #ffa3a8;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @media (max-width: 500px) {
+      .game-container {
+        padding: 15px;
+      }
+      .cell {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Tic-Tac-Toe</h1>
+
+  <div class="game-container">
+    <div class="scoreboard">
+      <span>Player (X): <span id="scoreX">0</span></span>
+      <span>AI (O): <span id="scoreO">0</span></span>
+    </div>
+    <div id="status">Player X's turn</div>
+    <div id="board"></div>
+    <div class="buttons">
+      <button onclick="resetGame()">Restart</button>
+    </div>
+  </div>
+
+  <!-- Winner Overlay -->
+  <div id="overlay">
+    <div class="overlay-content">
+      <h2 id="overlayMessage"></h2>
+      <button onclick="resetOverlay()">Play Again</button>
+    </div>
+  </div>
+
+  <audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-09.mp3"></audio>
+  <audio id="winSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-01.mp3"></audio>
+
+  <script>
+    const board = document.getElementById('board');
+    const statusText = document.getElementById('status');
+    const clickSound = document.getElementById('clickSound');
+    const winSound = document.getElementById('winSound');
+    const scoreXEl = document.getElementById('scoreX');
+    const scoreOEl = document.getElementById('scoreO');
+    const overlay = document.getElementById('overlay');
+    const overlayMessage = document.getElementById('overlayMessage');
+
+    let cells = [];
+    let currentPlayer = 'X';
+    let gameOver = false;
+    let scoreX = 0;
+    let scoreO = 0;
+
+    function createBoard() {
+      board.innerHTML = '';
+      cells = [];
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.addEventListener('click', () => handleClick(i));
+        board.appendChild(cell);
+        cells.push(cell);
+      }
+      currentPlayer = 'X';
+      gameOver = false;
+      statusText.textContent = "Player X's turn";
+    }
+
+    function handleClick(index) {
+      if (cells[index].textContent || gameOver) return;
+      cells[index].textContent = currentPlayer;
+      clickSound.play();
+      if (checkWin(currentPlayer)) {
+        endGame(currentPlayer);
+        return;
+      }
+      if (cells.every(cell => cell.textContent)) {
+        endGame('Draw');
+        return;
+      }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      statusText.textContent = `Player ${currentPlayer}'s turn`;
+      if (currentPlayer === 'O') setTimeout(aiMove, 400);
+    }
+
+    function aiMove() {
+      if (gameOver) return;
+      const bestMove = getBestMove();
+      handleClick(bestMove);
+    }
+
+    function getBestMove() {
+      let bestScore = -Infinity;
+      let move = -1;
+      for (let i = 0; i < cells.length; i++) {
+        if (cells[i].textContent === '') {
+          cells[i].textContent = 'O';
+          let score = minimax(0, false);
+          cells[i].textContent = '';
+          if (score > bestScore) {
+            bestScore = score;
+            move = i;
+          }
+        }
+      }
+      return move;
+    }
+
+    function minimax(depth, isMaximizing) {
+      if (checkWinSim('O')) return 10 - depth;
+      if (checkWinSim('X')) return depth - 10;
+      if (cells.every(cell => cell.textContent)) return 0;
+
+      if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < cells.length; i++) {
+          if (cells[i].textContent === '') {
+            cells[i].textContent = 'O';
+            let score = minimax(depth + 1, false);
+            cells[i].textContent = '';
+            bestScore = Math.max(score, bestScore);
+          }
+        }
+        return bestScore;
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < cells.length; i++) {
+          if (cells[i].textContent === '') {
+            cells[i].textContent = 'X';
+            let score = minimax(depth + 1, true);
+            cells[i].textContent = '';
+            bestScore = Math.min(score, bestScore);
+          }
+        }
+        return bestScore;
+      }
+    }
+
+    function checkWinSim(player) {
+      const wins = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      return wins.some(p => 
+        p.every(i => cells[i].textContent === player)
+      );
+    }
+
+    function checkWin(player) {
+      const winPatterns = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (let pattern of winPatterns) {
+        const [a,b,c] = pattern;
+        if (
+          cells[a].textContent === player &&
+          cells[b].textContent === player &&
+          cells[c].textContent === player
+        ) {
+          cells[a].classList.add('win');
+          cells[b].classList.add('win');
+          cells[c].classList.add('win');
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function endGame(winner) {
+      gameOver = true;
+      let message = '';
+      if (winner === 'X') {
+        message = "🎉 Player X Wins!";
+        scoreX++;
+        scoreXEl.textContent = scoreX;
+      } else if (winner === 'O') {
+        message = "🤖 AI Wins!";
+        scoreO++;
+        scoreOEl.textContent = scoreO;
+      } else {
+        message = "🤝 It's a Draw!";
+      }
+      overlayMessage.textContent = message;
+      overlay.classList.add('show');
+      winSound.play();
+    }
+
+    function resetOverlay() {
+      overlay.classList.remove('show');
+      resetGame();
+    }
+
+    function resetGame() {
+      createBoard();
+    }
+
+    createBoard();
+  </script>
+
+</body>
+</html>
